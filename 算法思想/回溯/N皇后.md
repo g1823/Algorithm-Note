@@ -203,5 +203,118 @@
 
 #### 优化：
 
-​	
+​	上面在判断某个位置是否可以放置皇后时，使用的计算过方式需要遍历，会导致每次计算时复杂度较高。
+
+```java
+public static boolean canPlace(int[][] data, int row, int col) {
+        // 检查同一列是否有皇后
+        for (int i = 0; i < row; i++) {
+            if (data[i][col] == 1) return false;
+        }
+        // 检查 \ 对角线是否存在皇后
+        for (int i = 1; row - i >= 0 && col - i >= 0; i++) {
+            if (data[row - i][col - i] == 1) return false;
+        }
+        // 检查 / 对角线是否存在皇后
+        for (int i = 1; row - i >= 0 && col + i < data.length; i++) {
+            if (data[row - i][col + i] == 1) return false;
+        }
+        return true;
+    }
+```
+
+
+
+可以改为如下方式:
+
+​	可以利用一个长度为 𝑛 的布尔型数组 `existCol` 记录每一列是否有皇后。在每次决定放置前，我们通过 `cols` 将已有皇后的列进行剪枝，并在回溯中动态更新 `cols` 的状态。
+
+那么，如何处理对角线约束呢？
+
+​	设棋盘中某个格子的行列索引为 (𝑟𝑜𝑤,𝑐𝑜𝑙) ，选定矩阵中的某条主对角线，我们发现该对角线上所有格子的行索引减列索引都相等，**即对角线上所有格子的 𝑟𝑜𝑤−𝑐𝑜𝑙 为恒定值**。
+
+​	也就是说，如果两个格子满足 𝑟𝑜𝑤1−𝑐𝑜𝑙1=𝑟𝑜𝑤2−𝑐𝑜𝑙2 ，则它们一定处在同一条主对角线上。利用该规律，我们可以借助如图所示的数组 `existLeftDiagonal` 记录每条主对角线上是否有皇后。
+
+​	容易看出，记录某一列是否有皇后的数组`existLeftDiagonal`长度为`2N-1`。
+
+​	![1719646742864](images/N皇后/1719646742864.png)
+
+同理，**次对角线上的所有格子的 𝑟𝑜𝑤+𝑐𝑜𝑙 是恒定值**。我们同样也可以借助数组 `existRightDiagonal` 来处理次对角线约束。
+
+```java
+public static boolean canPlace(int row, int col, int n, boolean[] existCol, boolean[] existLeftDiagonal, boolean[] existRightDiagonal) {
+        return !(existCol[col] || 
+                 existLeftDiagonal[row - col + n - 1] || 
+                 existRightDiagonal[row + col]);
+    }
+```
+
+完整代码：
+
+```java
+package backtracking;
+
+import java.util.Arrays;
+
+public class EightQueens2 {
+    private static int num = 0;
+
+    public static void main(String[] args) {
+        execute(9);
+    }
+
+    public static void execute(int n) {
+        // 皇后存在情况表
+        int[][] data = new int[n][n];
+        // 皇后存在列情况
+        boolean[] existCol = new boolean[n];
+        // 皇后存在对角线 \ 情况 (可以发现处于同一对角线的元素，行 - 列是同一个值，所以可以使用这个性质来存储对角线信息)
+        boolean[] existLeftDiagonal = new boolean[2 * n - 1];
+        // 皇后存在对角线 / 情况(可以发现处于同一对角线的元素，行+ 列是同一个值，所以可以使用这个性质来存储对角线信息)
+        boolean[] existRightDiagonal = new boolean[2 * n - 1];
+        dfs(data, n, 0, existCol, existLeftDiagonal, existRightDiagonal);
+    }
+
+    private static void dfs(int[][] data, int n, int row, boolean[] existCol, boolean[] existLeftDiagonal, boolean[] existRightDiagonal) {
+        if (row == n) {
+            // 所有皇后已放置完毕，输出
+            printResult(data, ++num);
+        }
+        for (int col = 0; col < n; col++) {
+            // 剪枝:判断该位置是否可以放入，不可放入则直接终止
+            if (canPlace(row, col, n, existCol, existLeftDiagonal, existRightDiagonal)) {
+                // 放入皇后
+                placeQueen(row, col, n, data, existCol, existLeftDiagonal, existRightDiagonal);
+                // 放入下一个皇后
+                dfs(data, n, row + 1, existCol, existLeftDiagonal, existRightDiagonal);
+                // 取出皇后
+                cancelPlaceQueen(row, col, n, data, existCol, existLeftDiagonal, existRightDiagonal);
+            }
+        }
+    }
+
+    public static boolean canPlace(int row, int col, int n, boolean[] existCol, boolean[] existLeftDiagonal, boolean[] existRightDiagonal) {
+        return !(existCol[col] || existLeftDiagonal[row - col + n - 1] || existRightDiagonal[row + col]);
+    }
+
+    public static void placeQueen(int row, int col, int n, int[][] data, boolean[] existCol, boolean[] existLeftDiagonal, boolean[] existRightDiagonal) {
+        data[row][col] = 1;
+        existCol[col] = existLeftDiagonal[row - col + n - 1] = existRightDiagonal[row + col] = true;
+    }
+
+    public static void cancelPlaceQueen(int row, int col, int n, int[][] data, boolean[] existCol, boolean[] existLeftDiagonal, boolean[] existRightDiagonal) {
+        data[row][col] = 0;
+        existCol[col] = existLeftDiagonal[row - col + n - 1] = existRightDiagonal[row + col] = false;
+    }
+
+    public static void printResult(int[][] data, int num) {
+        System.out.println("第" + num + "组解：");
+        for (int[] d : data) {
+            System.out.println(Arrays.toString(d));
+        }
+    }
+}
+```
+
+
 
